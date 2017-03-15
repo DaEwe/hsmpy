@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class HSM(Process):
-    def __init__(self, init_state):
+    def __init__(self, init_state, loop_time=0.01):
         super().__init__()
         self.state_changed_at = None
         self.event_queue = Queue()
@@ -17,6 +17,7 @@ class HSM(Process):
         self.current_state = init_state()
         self.states = set()
         self.transitions = defaultdict(list)
+        self.loop_time = loop_time
 
     def add_state(self, state):
         self.states.add(state)
@@ -32,9 +33,10 @@ class HSM(Process):
     def run(self):
         self.state_changed_at = time.time()
         while not self.exit.is_set() and not isinstance(self.current_state, FINAL):
+            loop_start = time.time()
             self.check_transitions()
             self.current_state.loop()
-            time.sleep(0.1)
+            time.sleep(self.loop_time - (time.time() - loop_start))
 
     def shutdown(self):
         self.exit.set()
@@ -58,7 +60,10 @@ class HSM(Process):
 
     def _test(self, condition, events):
         if callable(condition):
-            return condition()
+            if "self" in condition.__code__.co_varnames:
+                return condition(self.current_state)
+            else:
+                return condition()
         if "timeout" in condition.keys():
             return condition["timeout"] < self._get_time_since_state_change()
         if "event" in condition.keys():

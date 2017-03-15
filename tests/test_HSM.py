@@ -47,6 +47,9 @@ class TestHSM(TestCase):
             def final(self):
                 logger.debug("Leaving State 2")
 
+            def counts_exceeded(self):
+                return self.loops > 42
+
         def test():
             logger.debug(time.clock())
             return time.clock() > 0.1
@@ -55,7 +58,7 @@ class TestHSM(TestCase):
         self.hsm.add_transition({"from": S1, "to": S2, "condition": {"timeout": 5}})
         self.hsm.add_transition({"from": S2, "to": S1, "condition": {"event": "wah"}})
         self.hsm.add_transition({"from": S1, "to": S2, "condition": test})
-        self.hsm.add_transition({"from": S2, "to": FINAL, "condition": {"timeout": 4}})
+        self.hsm.add_transition({"from": S2, "to": FINAL, "condition": S2.counts_exceeded})
 
     def test_run(self):
         logger.debug("Starting hsm...")
