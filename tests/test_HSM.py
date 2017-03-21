@@ -74,7 +74,7 @@ class TestHSM(TestCase):
             def enter(self):
                 logger.debug("Entered State 1")
 
-            def loop(self):
+            def loop(self, event):
                 logger.debug("Looping {}".format(self.loops))
                 self.loops += 1
 
@@ -88,7 +88,7 @@ class TestHSM(TestCase):
             def enter(self):
                 logger.debug("Entered State 2")
 
-            def loop(self):
+            def loop(self, event):
                 logger.debug("Looping {}".format(self.loops))
                 self.loops += 1
 
@@ -157,4 +157,51 @@ class TestHSM(TestCase):
 
         ohsm = OuterHSM()
         ohsm.start()
+        ohsm.join()
+
+    def test_hierarchical_with_event_run(self):
+        class S1(State):
+            pass
+
+        class S2(State):
+            def loop(self, event):
+                if event:
+                    logger.debug("S2 received Event {}".format(event))
+
+        class S3(State):
+            def loop(self, event):
+                if event:
+                    logger.debug("S3 received Event {}".format(event))
+
+        class S4(State):
+            pass
+
+        class S5(State):
+            pass
+
+        class InnerHSM(HSM):
+            transitions = [
+                {"from": S1, "to": S2, "condition": {"event": "drei"}},
+                {"from": S1, "to": S3, "condition": {"event": "vier"}},
+                {"from": S1, "to": FINAL, "condition": {"timeout": 5}},
+                {"from": S3, "to": FINAL, "condition": {"timeout": 2}},
+                {"from": S2, "to": FINAL, "condition": {"timeout": 2}},
+            ]
+
+            init_state = S1
+
+        class OuterHSM(HSM):
+            transitions = [
+                {"from": S4, "to": S5, "condition": {"event": "eins"}},
+                {"from": S5, "to": InnerHSM, "condition": {"event": "zwei"}},
+                {"from": InnerHSM, "to": FINAL, "condition": Condition.ON_FINAL},
+            ]
+
+            init_state = S4
+
+        ohsm = OuterHSM()
+        ohsm.start()
+        time.sleep(2)
+        for e in ["eins", "zwei", "drei", "vier"]:
+            ohsm.send_event(e)
         ohsm.join()

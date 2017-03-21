@@ -17,7 +17,9 @@ class State:
     def enter(self):
         logger.debug("Entered State '{}'".format(type(self).__name__))
 
-    def loop(self):
+    def loop(self, event):
+        if event:
+            logger.debug("Received Event {}".format(event))
         pass
 
     def final(self):
@@ -68,9 +70,9 @@ class HSM(Process, State):
         self.state_changed_at = time.time()
         self.current_state.enter()
 
-    def loop(self):
-        self.check_transitions()
-        self.current_state.loop()
+    def loop(self, event):
+        self.check_transitions(event)
+        self.current_state.loop(event)
 
     def final(self):
         State.final(self)
@@ -81,30 +83,28 @@ class HSM(Process, State):
         self.current_state.enter()
         while not self.exit.is_set() and not isinstance(self.current_state, FINAL):
             loop_start = time.time()
-            self.loop()
+            try:
+                event = self.event_queue.get(block=False)
+            except queue.Empty:
+                event = None
+            self.loop(event)
             time.sleep(self.loop_time - (time.time() - loop_start))
 
     def shutdown(self):
         self.exit.set()
 
-    def check_transitions(self):
+    def check_transitions(self, event):
         c_trans = self._transitions[type(self.current_state)]
-        c_events = []
-        while not self.event_queue.empty():
-            try:
-                c_events.append(self.event_queue.get())
-            except queue.Empty:
-                break
 
         for trans in c_trans:
-            if self._test(trans["condition"], c_events):
+            if self._test(trans["condition"], event):
                 self.current_state.final()
                 self.current_state = trans["to"]()
                 self.state_changed_at = time.time()
                 self.current_state.enter()
                 return
 
-    def _test(self, condition, events):
+    def _test(self, condition, event):
         if callable(condition):
             if "self" in condition.__code__.co_varnames:
                 return condition(self.current_state)
@@ -119,7 +119,7 @@ class HSM(Process, State):
             if "timeout" in condition.keys():
                 return condition["timeout"] < self._get_time_since_state_change()
             if "event" in condition.keys():
-                return condition["event"] in events
+                return condition["event"] == event
 
         raise ValueError("unsupported Condition: {}".format(condition))
 
