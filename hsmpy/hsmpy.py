@@ -3,46 +3,92 @@ import queue
 from collections import defaultdict
 import time
 import logging
-
+import enum
 
 logger = logging.getLogger(__name__)
 
 
-class HSM(Process):
-    def __init__(self, init_state, loop_time=0.01):
+class Condition(enum.Enum):
+    ON_FAILED = 1
+    ON_FINAL = 2
+
+
+class State:
+    def enter(self):
+        logger.debug("Entered State '{}'".format(type(self).__name__))
+
+    def loop(self):
+        pass
+
+    def final(self):
+        logger.debug("Finalizing State '{}'".format(type(self).__name__))
+
+
+class FINAL(State):
+    def enter(self):
+        logger.debug("Entered FINAL")
+
+
+class FAILED(State):
+    def enter(self):
+        logger.debug("Entered FAILED")
+
+
+class HSM(Process, State):
+
+    transitions = []
+
+    init_state = None
+
+    def __init__(self, init_state=None, loop_time=0.01):
         super().__init__()
         self.state_changed_at = None
         self.event_queue = Queue()
         self.exit = Event()
-        self.current_state = init_state()
+        self.current_state = init_state() if init_state else self.init_state()
         self.states = set()
-        self.transitions = defaultdict(list)
+        self._transitions = defaultdict(list)
         self.loop_time = loop_time
+        self._load_transitions()
 
-    def add_state(self, state):
-        self.states.add(state)
+    def _load_transitions(self):
+        for t in self.transitions:
+            self.add_transition(t)
 
     def add_transition(self, transition):
         self.states.add(transition["from"])
         self.states.add(transition["to"])
-        self.transitions[transition["from"]].append(transition)
+        self._transitions[transition["from"]].append(transition)
 
     def send_event(self, event):
         self.event_queue.put(event)
 
+    def enter(self):
+        State.enter(self)
+        self.state_changed_at = time.time()
+        self.current_state.enter()
+
+    def loop(self):
+        self.check_transitions()
+        self.current_state.loop()
+
+    def final(self):
+        State.final(self)
+        pass
+
     def run(self):
         self.state_changed_at = time.time()
+        self.current_state.enter()
         while not self.exit.is_set() and not isinstance(self.current_state, FINAL):
             loop_start = time.time()
-            self.check_transitions()
-            self.current_state.loop()
+            self.loop()
             time.sleep(self.loop_time - (time.time() - loop_start))
 
     def shutdown(self):
         self.exit.set()
 
     def check_transitions(self):
-        c_trans = self.transitions[type(self.current_state)]
+        c_trans = self._transitions[type(self.current_state)]
         c_events = []
         while not self.event_queue.empty():
             try:
@@ -64,26 +110,21 @@ class HSM(Process):
                 return condition(self.current_state)
             else:
                 return condition()
-        if "timeout" in condition.keys():
-            return condition["timeout"] < self._get_time_since_state_change()
-        if "event" in condition.keys():
-            return condition["event"] in events
+        if isinstance(condition, Condition):
+            if condition == Condition.ON_FAILED:
+                return isinstance(self.current_state.current_state, FAILED)
+            if condition == Condition.ON_FINAL:
+                return isinstance(self.current_state.current_state, FINAL)
+        else:
+            if "timeout" in condition.keys():
+                return condition["timeout"] < self._get_time_since_state_change()
+            if "event" in condition.keys():
+                return condition["event"] in events
+
+        raise ValueError("unsupported Condition: {}".format(condition))
 
     def _get_time_since_state_change(self):
         return time.time() - self.state_changed_at
 
 
-class State:
-    def enter(self):
-        pass
 
-    def loop(self):
-        pass
-
-    def final(self):
-        pass
-
-
-class FINAL(State):
-    def enter(self):
-        logger.debug("Entered FINAL")
