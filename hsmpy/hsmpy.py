@@ -14,8 +14,10 @@ class Condition(enum.Enum):
 
 
 class State:
-    def enter(self):
+    def enter(self, **kwargs):
         logger.debug("Entered State '{}'".format(type(self).__name__))
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def loop(self, event):
         if event:
@@ -27,12 +29,12 @@ class State:
 
 
 class FINAL(State):
-    def enter(self):
+    def enter(self, **kwargs):
         logger.debug("Entered FINAL")
 
 
 class FAILED(State):
-    def enter(self):
+    def enter(self, **kwargs):
         logger.debug("Entered FAILED")
 
 
@@ -65,10 +67,10 @@ class HSM(Process, State):
     def send_event(self, event):
         self.event_queue.put(event)
 
-    def enter(self):
-        State.enter(self)
+    def enter(self, **kwargs):
+        State.enter(self, **kwargs)
         self.state_changed_at = time.time()
-        self.current_state.enter()
+        self.current_state.enter(**kwargs)
 
     def loop(self, event):
         self.check_transitions(event)
@@ -78,9 +80,9 @@ class HSM(Process, State):
         State.final(self)
         pass
 
-    def run(self):
+    def run(self, **kwargs):
         self.state_changed_at = time.time()
-        self.current_state.enter()
+        self.current_state.enter(**kwargs)
         while not self.exit.is_set() and not isinstance(self.current_state, FINAL):
             loop_start = time.time()
             try:
@@ -101,7 +103,7 @@ class HSM(Process, State):
                 self.current_state.final()
                 self.current_state = trans["to"]()
                 self.state_changed_at = time.time()
-                self.current_state.enter()
+                self.current_state.enter(**trans["args"] if "args" in trans.keys() else {})
                 return
 
     def _test(self, condition, event):
@@ -115,11 +117,14 @@ class HSM(Process, State):
                 return isinstance(self.current_state.current_state, FAILED)
             if condition == Condition.ON_FINAL:
                 return isinstance(self.current_state.current_state, FINAL)
+        elif isinstance(condition, bool):
+            return condition
         else:
             if "timeout" in condition.keys():
                 return condition["timeout"] < self._get_time_since_state_change()
             if "event" in condition.keys():
                 return condition["event"] == event
+
 
         raise ValueError("unsupported Condition: {}".format(condition))
 

@@ -20,10 +20,10 @@ class TestHSM(TestCase):
             def __init__(self):
                 self.loops = 0
 
-            def enter(self):
+            def enter(self, **kwargs):
                 logger.debug("Entered State 1")
 
-            def loop(self):
+            def loop(self, event):
                 logger.debug("Looping {}".format(self.loops))
                 self.loops += 1
 
@@ -34,10 +34,10 @@ class TestHSM(TestCase):
             def __init__(self):
                 self.loops = 0
 
-            def enter(self):
+            def enter(self, **kwargs):
                 logger.debug("Entered State 2")
 
-            def loop(self):
+            def loop(self, event):
                 logger.debug("Looping {}".format(self.loops))
                 self.loops += 1
 
@@ -71,7 +71,7 @@ class TestHSM(TestCase):
             def __init__(self):
                 self.loops = 0
 
-            def enter(self):
+            def enter(self, **kwargs):
                 logger.debug("Entered State 1")
 
             def loop(self, event):
@@ -85,7 +85,7 @@ class TestHSM(TestCase):
             def __init__(self):
                 self.loops = 0
 
-            def enter(self):
+            def enter(self, **kwargs):
                 logger.debug("Entered State 2")
 
             def loop(self, event):
@@ -205,3 +205,25 @@ class TestHSM(TestCase):
         for e in ["eins", "zwei", "drei", "vier"]:
             ohsm.send_event(e)
         ohsm.join()
+
+    def test_state_arguments(self):
+
+        class S1(State):
+            def loop(self, event):
+                logger.debug([self.x, self.y, self.z])
+                self.x += 1
+
+        class Init(State):
+            pass
+
+        class MyHSM(HSM):
+            transitions = [
+                {"from": Init, "to": S1, "condition": True, "args": {"x": 1, "y": 2, "z": 3 }},
+                {"from": S1, "to": FINAL, "condition": {"timeout": 5}}
+            ]
+
+            init_state = Init
+
+        hsm = MyHSM()
+        hsm.start()
+        hsm.join()
