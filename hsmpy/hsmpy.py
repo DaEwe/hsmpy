@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 class Condition(enum.Enum):
     ON_FAILED = 1
     ON_FINAL = 2
+    EVENT = 3
+    TIMEOUT = 4
 
 
 class State:
@@ -120,10 +122,10 @@ class HSM(Process, State):
         elif isinstance(condition, bool):
             return condition
         else:
-            if "timeout" in condition.keys():
-                return condition["timeout"] < self._get_time_since_state_change()
-            if "event" in condition.keys():
-                return condition["event"] == event
+            if Condition.TIMEOUT in condition.keys():
+                return condition[Condition.TIMEOUT] < self._get_time_since_state_change()
+            if Condition.EVENT in condition.keys():
+                return condition[Condition.EVENT] == event
 
 
         raise ValueError("unsupported Condition: {}".format(condition))

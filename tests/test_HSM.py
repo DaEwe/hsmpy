@@ -53,8 +53,8 @@ class TestHSM(TestCase):
             logger.debug(time.clock())
             return time.clock() > 0.1
 
-        self.hsm.add_transition({"from": S1, "to": S2, "condition": {"timeout": 5}})
-        self.hsm.add_transition({"from": S2, "to": S1, "condition": {"event": "wah"}})
+        self.hsm.add_transition({"from": S1, "to": S2, "condition": {Condition.TIMEOUT: 5}})
+        self.hsm.add_transition({"from": S2, "to": S1, "condition": {Condition.EVENT: "wah"}})
         self.hsm.add_transition({"from": S1, "to": S2, "condition": test})
         self.hsm.add_transition({"from": S2, "to": FINAL, "condition": S2.counts_exceeded})
 
@@ -103,8 +103,8 @@ class TestHSM(TestCase):
 
         class MyHSM(HSM):
             transitions = [
-                {"from": S1, "to": S2, "condition": {"timeout": 5}},
-                {"from": S2, "to": S1, "condition": {"event": "wah"}},
+                {"from": S1, "to": S2, "condition": {Condition.TIMEOUT: 5}},
+                {"from": S2, "to": S1, "condition": {Condition.EVENT: "wah"}},
                 {"from": S1, "to": S2, "condition": test},
                 {"from": S2, "to": FINAL, "condition": S2.counts_exceeded},
             ]
@@ -139,17 +139,17 @@ class TestHSM(TestCase):
 
         class InnerHSM(HSM):
             transitions = [
-                {"from": S1, "to": S2, "condition": {"timeout": 2}},
-                {"from": S2, "to": S3, "condition": {"timeout": 2}},
-                {"from": S3, "to": FINAL, "condition": {"timeout": 2}},
+                {"from": S1, "to": S2, "condition": {Condition.TIMEOUT: 2}},
+                {"from": S2, "to": S3, "condition": {Condition.TIMEOUT: 2}},
+                {"from": S3, "to": FINAL, "condition": {Condition.TIMEOUT: 2}},
             ]
 
             init_state = S1
 
         class OuterHSM(HSM):
             transitions = [
-                {"from": S4, "to": S5, "condition": {"timeout": 2}},
-                {"from": S5, "to": InnerHSM, "condition": {"timeout": 2}},
+                {"from": S4, "to": S5, "condition": {Condition.TIMEOUT: 2}},
+                {"from": S5, "to": InnerHSM, "condition": {Condition.TIMEOUT: 2}},
                 {"from": InnerHSM, "to": FINAL, "condition": Condition.ON_FINAL},
             ]
 
@@ -181,19 +181,19 @@ class TestHSM(TestCase):
 
         class InnerHSM(HSM):
             transitions = [
-                {"from": S1, "to": S2, "condition": {"event": "drei"}},
-                {"from": S1, "to": S3, "condition": {"event": "vier"}},
-                {"from": S1, "to": FINAL, "condition": {"timeout": 5}},
-                {"from": S3, "to": FINAL, "condition": {"timeout": 2}},
-                {"from": S2, "to": FINAL, "condition": {"timeout": 2}},
+                {"from": S1, "to": S2, "condition": {Condition.EVENT: "drei"}},
+                {"from": S1, "to": S3, "condition": {Condition.EVENT: "vier"}},
+                {"from": S1, "to": FINAL, "condition": {Condition.TIMEOUT: 5}},
+                {"from": S3, "to": FINAL, "condition": {Condition.TIMEOUT: 2}},
+                {"from": S2, "to": FINAL, "condition": {Condition.TIMEOUT: 2}},
             ]
 
             init_state = S1
 
         class OuterHSM(HSM):
             transitions = [
-                {"from": S4, "to": S5, "condition": {"event": "eins"}},
-                {"from": S5, "to": InnerHSM, "condition": {"event": "zwei"}},
+                {"from": S4, "to": S5, "condition": {Condition.EVENT: "eins"}},
+                {"from": S5, "to": InnerHSM, "condition": {Condition.EVENT: "zwei"}},
                 {"from": InnerHSM, "to": FINAL, "condition": Condition.ON_FINAL},
             ]
 
@@ -219,7 +219,7 @@ class TestHSM(TestCase):
         class MyHSM(HSM):
             transitions = [
                 {"from": Init, "to": S1, "condition": True, "args": {"x": 1, "y": 2, "z": 3 }},
-                {"from": S1, "to": FINAL, "condition": {"timeout": 5}}
+                {"from": S1, "to": FINAL, "condition": {Condition.TIMEOUT: 5}}
             ]
 
             init_state = Init
