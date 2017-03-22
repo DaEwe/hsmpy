@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 class TestHSM(TestCase):
     def test_run(self):
         class S1(State):
-            def __init__(self):
+            def __init__(self, uber, **kwargs):
+                super().__init__(uber, **kwargs)
                 self.loops = 0
 
             def enter(self, **kwargs):
@@ -31,7 +32,8 @@ class TestHSM(TestCase):
                 logger.debug("Leaving State 1")
 
         class S2(State):
-            def __init__(self):
+            def __init__(self, uber, **kwargs):
+                super().__init__(uber, **kwargs)
                 self.loops = 0
 
             def enter(self, **kwargs):
@@ -68,7 +70,8 @@ class TestHSM(TestCase):
 
     def test_class_based_run(self):
         class S1(State):
-            def __init__(self):
+            def __init__(self, uber, **kwargs):
+                super().__init__(uber, **kwargs)
                 self.loops = 0
 
             def enter(self, **kwargs):
@@ -82,7 +85,8 @@ class TestHSM(TestCase):
                 logger.debug("Leaving State 1")
 
         class S2(State):
-            def __init__(self):
+            def __init__(self, uber, **kwargs):
+                super().__init__(uber, **kwargs)
                 self.loops = 0
 
             def enter(self, **kwargs):
@@ -218,11 +222,40 @@ class TestHSM(TestCase):
 
         class MyHSM(HSM):
             transitions = [
-                {"from": Init, "to": S1, "condition": True, "args": {"x": 1, "y": 2, "z": 3 }},
+                {"from": Init, "to": S1, "condition": True, "args": {"x": 1, "y": 2, "z": 3}},
                 {"from": S1, "to": FINAL, "condition": {Condition.TIMEOUT: 5}}
             ]
 
             init_state = Init
+
+        hsm = MyHSM()
+        hsm.start()
+        hsm.join()
+
+    def test_uber_state(self):
+
+        class S1(State):
+            def enter(self):
+                logger.debug("My uber state is {}".format(self.uber.__class__.__name__))
+
+            def loop(self, event):
+                super().loop(event)
+                self.uber.looplist.append(1)
+
+            def final(self):
+                super().final()
+                logger.debug(self.uber.looplist)
+
+        class MyHSM(HSM):
+            transitions = [
+                {"from": S1, "to": FINAL, "condition": {Condition.TIMEOUT: 5}}
+            ]
+
+            init_state = S1
+
+            def __init__(self):
+                super().__init__()
+                self.looplist = []
 
         hsm = MyHSM()
         hsm.start()

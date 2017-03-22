@@ -16,10 +16,13 @@ class Condition(enum.Enum):
 
 
 class State:
-    def enter(self, **kwargs):
-        logger.debug("Entered State '{}'".format(type(self).__name__))
+    def __init__(self, uber, **kwargs):
+        self.uber = uber
         for k, v in kwargs.items():
             setattr(self, k, v)
+
+    def enter(self):
+        logger.debug("Entered State '{}'".format(type(self).__name__))
 
     def loop(self, event):
         if event:
@@ -41,7 +44,6 @@ class FAILED(State):
 
 
 class HSM(Process, State):
-
     transitions = []
 
     init_state = None
@@ -51,7 +53,7 @@ class HSM(Process, State):
         self.state_changed_at = None
         self.event_queue = Queue()
         self.exit = Event()
-        self.current_state = init_state() if init_state else self.init_state()
+        self.current_state = init_state(self) if init_state else self.init_state(self)
         self.states = set()
         self._transitions = defaultdict(list)
         self.loop_time = loop_time
@@ -69,10 +71,10 @@ class HSM(Process, State):
     def send_event(self, event):
         self.event_queue.put(event)
 
-    def enter(self, **kwargs):
-        State.enter(self, **kwargs)
+    def enter(self):
+        State.enter(self)
         self.state_changed_at = time.time()
-        self.current_state.enter(**kwargs)
+        self.current_state.enter()
 
     def loop(self, event):
         self.check_transitions(event)
@@ -103,9 +105,9 @@ class HSM(Process, State):
         for trans in c_trans:
             if self._test(trans["condition"], event):
                 self.current_state.final()
-                self.current_state = trans["to"]()
+                self.current_state = trans["to"](self, **trans["args"] if "args" in trans.keys() else {})
                 self.state_changed_at = time.time()
-                self.current_state.enter(**trans["args"] if "args" in trans.keys() else {})
+                self.current_state.enter()
                 return
 
     def _test(self, condition, event):
@@ -127,11 +129,7 @@ class HSM(Process, State):
             if Condition.EVENT in condition.keys():
                 return condition[Condition.EVENT] == event
 
-
         raise ValueError("unsupported Condition: {}".format(condition))
 
     def _get_time_since_state_change(self):
         return time.time() - self.state_changed_at
-
-
-
