@@ -1,4 +1,5 @@
-from multiprocessing import Queue, Process, Event
+import json
+import multiprocessing as mp
 import queue
 from collections import defaultdict
 import time
@@ -11,9 +12,34 @@ logger = logging.getLogger(__name__)
 class Condition(enum.Enum):
     ON_FAILED = 1
     ON_FINAL = 2
-    EVENT = 3
+    EVENT_TYPE = 3
     TIMEOUT = 4
 
+
+class Event:
+
+    def __init__(self, type_, value):
+        self.value = value
+        self.type = type_
+
+    @property
+    def value(self):
+        return self.__value
+
+    @value.setter
+    def value(self, value):
+        self.__value = value
+
+    @property
+    def type(self):
+        return self.__type
+
+    @type.setter
+    def type(self, type_):
+        self.__type = type_
+
+    def __str__(self):
+        return json.dumps({"value": self.value, "type": self.type})
 
 class State:
     def __init__(self, uber, **kwargs):
@@ -43,16 +69,17 @@ class FAILED(State):
         logger.debug("Entered FAILED")
 
 
-class HSM(Process, State):
+class HSM(mp.Process, State):
     transitions = []
 
     init_state = None
 
-    def __init__(self, init_state=None, loop_time=0.01):
-        super().__init__()
+    def __init__(self, uber=None, init_state=None, loop_time=0.01, **kwargs):
+        State.__init__(self, uber, **kwargs)
+        mp.Process.__init__(self)
         self.state_changed_at = None
-        self.event_queue = Queue()
-        self.exit = Event()
+        self.event_queue = mp.Queue()
+        self.exit = mp.Event()
         self.current_state = init_state(self) if init_state else self.init_state(self)
         self.states = set()
         self._transitions = defaultdict(list)
@@ -126,8 +153,8 @@ class HSM(Process, State):
         else:
             if Condition.TIMEOUT in condition.keys():
                 return condition[Condition.TIMEOUT] < self._get_time_since_state_change()
-            if Condition.EVENT in condition.keys():
-                return condition[Condition.EVENT] == event
+            if Condition.EVENT_TYPE in condition.keys():
+                return event and condition[Condition.EVENT_TYPE].type == event.type
 
         raise ValueError("unsupported Condition: {}".format(condition))
 

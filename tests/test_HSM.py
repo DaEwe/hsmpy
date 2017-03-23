@@ -4,7 +4,7 @@ import sys
 import time
 from unittest import TestCase
 
-from hsmpy import HSM, State, FINAL, Condition
+from hsmpy import HSM, State, FINAL, Condition, Event
 
 mpl = multiprocessing.log_to_stderr()
 mpl.setLevel(logging.INFO)
@@ -56,7 +56,7 @@ class TestHSM(TestCase):
             return time.clock() > 0.1
 
         self.hsm.add_transition({"from": S1, "to": S2, "condition": {Condition.TIMEOUT: 5}})
-        self.hsm.add_transition({"from": S2, "to": S1, "condition": {Condition.EVENT: "wah"}})
+        self.hsm.add_transition({"from": S2, "to": S1, "condition": {Condition.EVENT_TYPE: Event("wah", "")}})
         self.hsm.add_transition({"from": S1, "to": S2, "condition": test})
         self.hsm.add_transition({"from": S2, "to": FINAL, "condition": S2.counts_exceeded})
 
@@ -64,7 +64,7 @@ class TestHSM(TestCase):
         self.hsm.start()
         logger.debug("Started.")
         time.sleep(7)
-        self.hsm.send_event("wah")
+        self.hsm.send_event(Event("wah", ""))
         self.hsm.join()
         logger.debug("Final")
 
@@ -108,7 +108,7 @@ class TestHSM(TestCase):
         class MyHSM(HSM):
             transitions = [
                 {"from": S1, "to": S2, "condition": {Condition.TIMEOUT: 5}},
-                {"from": S2, "to": S1, "condition": {Condition.EVENT: "wah"}},
+                {"from": S2, "to": S1, "condition": {Condition.EVENT_TYPE: Event("wah", "")}},
                 {"from": S1, "to": S2, "condition": test},
                 {"from": S2, "to": FINAL, "condition": S2.counts_exceeded},
             ]
@@ -121,7 +121,7 @@ class TestHSM(TestCase):
         mhsm.start()
         logger.debug("Started.")
         time.sleep(7)
-        mhsm.send_event("wah")
+        mhsm.send_event(Event("wah", ""))
         mhsm.join()
         logger.debug("Final")
 
@@ -185,8 +185,8 @@ class TestHSM(TestCase):
 
         class InnerHSM(HSM):
             transitions = [
-                {"from": S1, "to": S2, "condition": {Condition.EVENT: "drei"}},
-                {"from": S1, "to": S3, "condition": {Condition.EVENT: "vier"}},
+                {"from": S1, "to": S2, "condition": {Condition.EVENT_TYPE: Event("drei", "")}},
+                {"from": S1, "to": S3, "condition": {Condition.EVENT_TYPE: Event("vier", "")}},
                 {"from": S1, "to": FINAL, "condition": {Condition.TIMEOUT: 5}},
                 {"from": S3, "to": FINAL, "condition": {Condition.TIMEOUT: 2}},
                 {"from": S2, "to": FINAL, "condition": {Condition.TIMEOUT: 2}},
@@ -196,8 +196,8 @@ class TestHSM(TestCase):
 
         class OuterHSM(HSM):
             transitions = [
-                {"from": S4, "to": S5, "condition": {Condition.EVENT: "eins"}},
-                {"from": S5, "to": InnerHSM, "condition": {Condition.EVENT: "zwei"}},
+                {"from": S4, "to": S5, "condition": {Condition.EVENT_TYPE: Event("eins", "")}},
+                {"from": S5, "to": InnerHSM, "condition": {Condition.EVENT_TYPE: Event("zwei", "")}},
                 {"from": InnerHSM, "to": FINAL, "condition": Condition.ON_FINAL},
             ]
 
@@ -207,7 +207,7 @@ class TestHSM(TestCase):
         ohsm.start()
         time.sleep(2)
         for e in ["eins", "zwei", "drei", "vier"]:
-            ohsm.send_event(e)
+            ohsm.send_event(Event(e, ""))
         ohsm.join()
 
     def test_state_arguments(self):
