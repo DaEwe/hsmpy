@@ -121,7 +121,7 @@ class HSM(mp.Process, State):
             except queue.Empty:
                 event = None
             self.loop(event)
-            time.sleep(self.loop_time - (time.time() - loop_start))
+            time.sleep(max(self.loop_time - (time.time() - loop_start), 0))
 
     def shutdown(self):
         self.exit.set()
