@@ -154,7 +154,7 @@ class HSM(mp.Process, State):
             if Condition.TIMEOUT in condition.keys():
                 return condition[Condition.TIMEOUT] < self._get_time_since_state_change()
             if Condition.EVENT_TYPE in condition.keys():
-                return event and condition[Condition.EVENT_TYPE].type == event.type
+                return event and condition[Condition.EVENT_TYPE] == event.type
 
         raise ValueError("unsupported Condition: {}".format(condition))
 

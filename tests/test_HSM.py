@@ -56,7 +56,7 @@ class TestHSM(TestCase):
             return time.clock() > 0.1
 
         self.hsm.add_transition({"from": S1, "to": S2, "condition": {Condition.TIMEOUT: 5}})
-        self.hsm.add_transition({"from": S2, "to": S1, "condition": {Condition.EVENT_TYPE: Event("wah", "")}})
+        self.hsm.add_transition({"from": S2, "to": S1, "condition": {Condition.EVENT_TYPE: "wah"}})
         self.hsm.add_transition({"from": S1, "to": S2, "condition": test})
         self.hsm.add_transition({"from": S2, "to": FINAL, "condition": S2.counts_exceeded})
 
@@ -108,7 +108,7 @@ class TestHSM(TestCase):
         class MyHSM(HSM):
             transitions = [
                 {"from": S1, "to": S2, "condition": {Condition.TIMEOUT: 5}},
-                {"from": S2, "to": S1, "condition": {Condition.EVENT_TYPE: Event("wah", "")}},
+                {"from": S2, "to": S1, "condition": {Condition.EVENT_TYPE: "wah"}},
                 {"from": S1, "to": S2, "condition": test},
                 {"from": S2, "to": FINAL, "condition": S2.counts_exceeded},
             ]
@@ -185,8 +185,8 @@ class TestHSM(TestCase):
 
         class InnerHSM(HSM):
             transitions = [
-                {"from": S1, "to": S2, "condition": {Condition.EVENT_TYPE: Event("drei", "")}},
-                {"from": S1, "to": S3, "condition": {Condition.EVENT_TYPE: Event("vier", "")}},
+                {"from": S1, "to": S2, "condition": {Condition.EVENT_TYPE: "drei"}},
+                {"from": S1, "to": S3, "condition": {Condition.EVENT_TYPE: "vier"}},
                 {"from": S1, "to": FINAL, "condition": {Condition.TIMEOUT: 5}},
                 {"from": S3, "to": FINAL, "condition": {Condition.TIMEOUT: 2}},
                 {"from": S2, "to": FINAL, "condition": {Condition.TIMEOUT: 2}},
@@ -196,8 +196,8 @@ class TestHSM(TestCase):
 
         class OuterHSM(HSM):
             transitions = [
-                {"from": S4, "to": S5, "condition": {Condition.EVENT_TYPE: Event("eins", "")}},
-                {"from": S5, "to": InnerHSM, "condition": {Condition.EVENT_TYPE: Event("zwei", "")}},
+                {"from": S4, "to": S5, "condition": {Condition.EVENT_TYPE: "eins"}},
+                {"from": S5, "to": InnerHSM, "condition": {Condition.EVENT_TYPE: "zwei"}},
                 {"from": InnerHSM, "to": FINAL, "condition": Condition.ON_FINAL},
             ]
 
