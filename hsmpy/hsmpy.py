@@ -132,7 +132,7 @@ class HSM(mp.Process, State):
         for trans in c_trans:
             if self._test(trans["condition"], event):
                 self.current_state.final()
-                self.current_state = trans["to"](self, **trans["args"] if "args" in trans.keys() else {})
+                self.current_state = trans["to"](self.uber, **trans["args"] if "args" in trans.keys() else {})
                 self.state_changed_at = time.time()
                 self.current_state.enter()
                 return
