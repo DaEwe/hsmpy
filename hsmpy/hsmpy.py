@@ -1,6 +1,7 @@
 import json
-import multiprocessing as mp
+import threading as mp
 import queue
+from queue import Queue
 from collections import defaultdict
 import time
 import logging
@@ -69,16 +70,16 @@ class FAILED(State):
         logger.debug("Entered FAILED")
 
 
-class HSM(mp.Process, State):
+class HSM(mp.Thread, State):
     transitions = []
 
     init_state = None
 
     def __init__(self, uber=None, init_state=None, loop_time=0.01, **kwargs):
         State.__init__(self, uber, **kwargs)
-        mp.Process.__init__(self)
+        mp.Thread.__init__(self)
         self.state_changed_at = None
-        self.event_queue = mp.Queue()
+        self.event_queue = Queue()
         self.exit = mp.Event()
         self.current_state = init_state(self.uber) if init_state else self.init_state(self.uber)
         self.states = set()

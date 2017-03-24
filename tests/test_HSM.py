@@ -1,13 +1,9 @@
 import logging
-import multiprocessing
 import sys
 import time
 from unittest import TestCase
 
 from hsmpy import HSM, State, FINAL, Condition, Event
-
-mpl = multiprocessing.log_to_stderr()
-mpl.setLevel(logging.INFO)
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
@@ -254,7 +250,7 @@ class TestHSM(TestCase):
             init_state = S1
 
             def __init__(self):
-                super().__init__()
+                super().__init__(uber=self)
                 self.looplist = []
 
         hsm = MyHSM()
