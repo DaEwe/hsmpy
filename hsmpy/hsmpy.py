@@ -1,5 +1,5 @@
 import json
-import threading as mp
+import threading as thr
 import queue
 from queue import Queue
 from collections import defaultdict
@@ -46,6 +46,11 @@ class State:
     def __init__(self, uber, **kwargs):
         self.uber = uber
         for k, v in kwargs.items():
+            if callable(v):
+                if "self" in v.__code__.co_varnames:
+                    v = v(self)
+                else:
+                    v = v()
             setattr(self, k, v)
 
     def enter(self):
@@ -70,17 +75,17 @@ class FAILED(State):
         logger.debug("Entered FAILED")
 
 
-class HSM(mp.Thread, State):
+class HSM(thr.Thread, State):
     transitions = []
 
     init_state = None
 
     def __init__(self, uber=None, init_state=None, loop_time=0.01, **kwargs):
         State.__init__(self, uber, **kwargs)
-        mp.Thread.__init__(self)
+        thr.Thread.__init__(self,daemon=True    )
         self.state_changed_at = None
         self.event_queue = Queue()
-        self.exit = mp.Event()
+        self.exit = thr.Event()
         self.current_state = init_state(self.uber) if init_state else self.init_state(self.uber)
         self.states = set()
         self._transitions = defaultdict(list)
