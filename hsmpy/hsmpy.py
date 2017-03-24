@@ -80,7 +80,7 @@ class HSM(mp.Process, State):
         self.state_changed_at = None
         self.event_queue = mp.Queue()
         self.exit = mp.Event()
-        self.current_state = init_state(self) if init_state else self.init_state(self)
+        self.current_state = init_state(self.uber) if init_state else self.init_state(self.uber)
         self.states = set()
         self._transitions = defaultdict(list)
         self.loop_time = loop_time
